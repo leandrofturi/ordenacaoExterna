@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     char *in2 = argv[6];
     char *out = argv[7];
 
-    BMM(M, P, in1, L1[0]);
+    BMM(M, P, in1, L1);
     
     return(0);
 }

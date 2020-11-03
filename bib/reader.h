@@ -14,5 +14,5 @@ void create_files(char**, int);
 FILE* myfopen(char*, char*);
 
 // Contar as ocorrências de um caracter específico em uma string.
-size_t strcount(char*, char);
-size_t strcountR(char*, char); // Recursivo
+int strcount(char*, char);
+int strcountR(char*, char); // Recursivo

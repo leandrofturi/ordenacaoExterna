@@ -20,7 +20,7 @@ char* read_line(FILE *arq) {
 
 void create_files(char **names, int n) {
     FILE *files[n];
-    for(size_t i = 0; i < n; i++) {
+    for(int i = 0; i < n; i++) {
         files[i] = myfopen(names[i], "w");
         fclose(files[i]);
     }
@@ -37,12 +37,12 @@ FILE* myfopen(char *filename, char *op) {
 	return file;
 }
 
-size_t strcount(char *str, char c) {
-    size_t r = 0;
-    for(size_t i = 0; str[i]; i++) r += str[i] == c;
+int strcount(char *str, char c) {
+    int r = 0;
+    for(int i = 0; str[i]; i++) r += str[i] == c;
     return r;
 }
 
-size_t strcountR(char *str, char c) {
+int strcountR(char *str, char c) {
     return *str ? ((c==*str) + strcountR(str+1, c)) : 0;
 }
