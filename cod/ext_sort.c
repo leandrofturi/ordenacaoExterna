@@ -50,8 +50,8 @@ void write_memory(tMem *mem, FILE *fileW) {
     if(m) fprintf(fileW, "#\n");
 }
 
-static int less(int i, int j, tMem *mem, int *idexes) {
-    return(strcmp(mem->data[i], mem->data[j]) < 0);
+static int less(char *a, char *b, int *idexes) {
+    return(strcmp(a, b) < 0);
 }
 
 static void exch(int i, int j, tMem *mem) {
@@ -60,30 +60,69 @@ static void exch(int i, int j, tMem *mem) {
     mem->data[j] = t;
 }
 
+int partition(tMem *mem, int *idexes, int lo, int hi) {
+    int i = lo, j = hi+1;
+    char *v = mem->data[lo];
+
+    while(1) {
+        while(less(mem->data[++i], v, idexes))
+            if(i == hi)
+                break;
+        while(less(v, mem->data[--j], idexes))
+            if(j == lo)
+                break;
+        if(i >= j)
+            break;
+        exch(i, j, mem);
+    }
+    exch(lo, j, mem);
+
+    return(j);
+}
+
 static void insert_sort(tMem *mem, int *idexes, int lo, int hi) {
     int i, j;
     char *v;
     for(i = hi; i > lo; i--)
-        if(less(i, i-1, mem, idexes))
+        if(less(mem->data[i], mem->data[i-1], idexes))
             exch(i, i-1, mem);
     for(i = lo+2; i <= hi; i++) {
         j = i;
         v = mem->data[i];
-        while(less(i, j-1, mem, idexes)) {
+        for(; less(v, mem->data[j-1], idexes); j--)
             mem->data[j] = mem->data[j-1];
-            j--;
-        }
         mem->data[j] = v;
     }
 }
+
+static void shuffle(tMem *mem) {
+    int i, j;
+    for(i = 0; i < mem->nrows; i++) {
+        j = rand() % mem->nrows;
+        exch(i, j, mem);
+    }
+}
+
+void quick_sort(tMem *mem, int *idexes, int lo, int hi) {
+    if(hi <= lo)
+        return;
+    if(hi <= lo + CUTOFF - 1) {
+        insert_sort(mem, idexes, lo, hi);
+        return;
+    }
+    int j = partition(mem, idexes, lo, hi);
+    quick_sort(mem, idexes, lo, j-1);
+    quick_sort(mem, idexes, j+1, hi);
+}
+
 
 void sort_memory(tMem *mem, int *idexes) {
     if(mem->nrows <= 1)
         return;
     insert_sort(mem, idexes, 0, mem->nrows-1);
-    //if(mem->nrows > CUTOFF)
-    //    shuffle(mem);
-    //quick_sort(mem, 0, mem->nrows-1, idexes);
+    if(mem->nrows > CUTOFF)
+        shuffle(mem);
+    quick_sort(mem, idexes, 0, mem->nrows-1);
 }
 
 void BMM(int M, int P, char *filename, int *idexes) {
