@@ -56,13 +56,13 @@ void free_names(char **names, int N) {
 }
 
 void fopen_block(FILE **disp, int lo, int hi, char **names, char *op) {
-    for(; lo < hi; lo++)
-        disp[lo] = myfopen(names[lo], op);
+    for(int i = lo; i < hi; i++)
+        disp[i] = myfopen(names[i], op);
 }
 
 void fclose_block(FILE **disp, int lo, int hi) {
-    for(; lo < hi; lo++)
-        fclose(disp[lo]);
+    for(int i = lo; i < hi; i++)
+        fclose(disp[i]);
 }
 
 void load_memory(FILE *fileR, Mem *mem) {
@@ -96,6 +96,10 @@ void write_memory(Mem *mem, FILE *fileW) {
 }
 
 static int less(char *a, char *b, int *idexes) {
+    if(!b) // maior de todos é NULL
+        return 1;
+    if(!a)
+        return 0;
     return(strcmp(a, b) < 0);
 }
 
@@ -169,13 +173,64 @@ void sort_memory(Mem *mem, int *idexes) {
     quick_sort(mem, idexes, 0, mem->nrows-1);
 }
 
+int lin_search(FILE **disp, int *idexes, int block_R, int P) {
+    size_t i; // iteradores
+    int block_W = block_R == P ? 0 : P,
+        min = P-1;
+    int r, w = block_W;
+    char *line[P]; // linha lida do arquivo
+    int tabu_disp[P], left_devices = P, left_to_read = P; // dispositivos tabu
+
+    for(i = 0; i < P; i++) {
+        line[i] = NULL;
+        tabu_disp[i] = 0;
+    }
+
+    while(1) {
+        for(r = 0; r < P; r++) {
+            if(feof(disp[r+block_R])) {
+                tabu_disp[r] = 1;
+                left_devices--;
+                left_to_read--;
+            }
+            if(!tabu_disp[r] && !line[r]) { // apenas leio se estiver vazio e se não for tabu
+                line[r] = read_line(disp[r+block_R]);
+                if(line[r] && strcmp(line[r], "#") == 0) { // acabou o bloco?
+                    free(line[r]);
+                    tabu_disp[r] = 1; // disp passa a ser tabu
+                    left_devices--;
+                    continue;
+                }
+            }
+            if(line[r] && less(line[r], line[min], idexes))
+                min = r;
+        }
+        printf("%s", line[min]);
+        fprintf(disp[w], line[min]);
+        free(line[min]);
+        line[min] = NULL; // essa linha deve ser lida
+        min = 0;
+
+        if(!left_devices) { // se tiver lido tudo do bloco, reseta e passa pro próximo
+            w = ((w+1)%P) + block_W;
+            left_devices = P;
+            for(i = 0; i < P; i++) { // Reseta o sistema
+                line[i] = NULL;
+                tabu_disp[i] = 0;
+            }
+        }
+        if(!left_to_read)
+            break;
+    }
+    return 1;
+}
+
 /*
- disp -> todos os dispositivos
- block_R -> o bloco que está sendo usado para leitura
-*/
+disp -> todos os dispositivos
+block_R -> o bloco que está sendo usado para leitura
 int lin_search(FILE **disp, int *idexes, int block_R, int P) {
     int w, r, // w = iteração de escrita, r =  iteração de leitura
-        min = 0, // posição do mínimo
+        min = P, // posição do mínimo
         block_W = !block_R ? 0 : P, // Bloco de escrita e leitura são inversos
         disp_writed = 0; // Quantidade de dispositivos que foram escritos. == 1, BMM deve terminar
     char *line[P]; // linha lida do arquivo
@@ -185,35 +240,37 @@ int lin_search(FILE **disp, int *idexes, int block_R, int P) {
         line[i] = NULL;
         tabu_disp[i] = 0;
     }
-    int jj = 20;
-    while(jj > 0) {
-        jj--;
 
-        for(r = block_R+1; r < P; r++) {
+    while(1) {
+        for(r = block_R; r < block_R+P; r++) {
+            printf("loop: %d: ", r);
             if(feof(disp[r])) {
                 tabu_disp[r] = 1;
                 left_devices--;
                 left_to_read--;
             }
-
-            if(tabu_disp[r]) // caso seja tabu, não deve ser lido 
-                continue;
-            if(!line[r-block_R]) // apenas leio se estiver vazio
+            if(!tabu_disp[r-block_R] && !line[r-block_R]) { // apenas leio se estiver vazio e se não for tabu
+                printf("(%d %d)\n", r, r-block_R);
                 line[r-block_R] = read_line(disp[r]); // P-block_R = mapeamento para 0:P
-
-            if(strcmp(line[r-block_R], "#") == 0) { // acabou o bloco?
-                printf("ENTROU!\n");
-                free(line[r-block_R]);
-                tabu_disp[r] = 1; // disp passa a ser tabu
-                left_devices--; // decrementa a qnt de disp restantes
-                continue;
+                if(line[r-block_R] && strcmp(line[r-block_R], "#") == 0) { // acabou o bloco?
+                    free(line[r-block_R]);
+                    tabu_disp[r-block_R] = 1; // disp passa a ser tabu
+                    left_devices--; // decrementa a qnt de disp restantes
+                    continue;
+                }
             }
-            if(less(line[r-block_R], line[min], idexes)) // cc, é comparado com o mínimo
+
+            if(line[r-block_R] && less(line[r-block_R], line[min], idexes)) { // cc, é comparado com o mínimo
                 min = r-block_R;
+                printf("min %d: %s\n", r-block_R, line[r-block_R]);
+            }
         } // após ler todos os dispositivos,
         fprintf(disp[w], line[min]);
+
         free(line[min]);
         line[min] = NULL; // essa linha deve ser lida
+        min = P;
+
         if(!left_devices) { // Se tiver lido tudo do bloco, reseta e passa pro próximo
             w = ((w+1)%P)+block_W;
             disp_writed++;
@@ -229,9 +286,12 @@ int lin_search(FILE **disp, int *idexes, int block_R, int P) {
     return disp_writed;
 }
 
+*/
 void BMM(int M, int P, char *filename, int *idexes) {
     char *line, **file_names = make_names(2*P);
     FILE *disp[2*P], *fileR;
+    fopen_block(disp, 0, 2*P, file_names, "w"); // criação dos arquivos
+    fclose_block(disp, 0, 2*P);
 
     fileR = myfopen(filename, "r");
     disp[0] = myfopen(file_names[0], "w");
@@ -261,11 +321,12 @@ void BMM(int M, int P, char *filename, int *idexes) {
         }
 
         // Leitura dos valores em ordem em cada bloco
-        fopen_block(disp, block, P+block, file_names, "w");
-        block = !block ? 0 : P;
         fopen_block(disp, block, P+block, file_names, "r");
-        exit = lin_search(disp, idexes, block, P) != 1;
+        block = block == P ? 0 : P;
+        fopen_block(disp, block, P+block, file_names, "w");
+        exit = lin_search(disp, idexes, block == P ? 0 : P, P) != 1;
         fclose_block(disp, 0, 2*P);
+        exit = 0;
     }
     Mem_del(mem);
     free_names(file_names, 2*P);
