@@ -4,13 +4,11 @@
 
 #define CUTOFF 16
 
-struct tMem {
-    char **data;
-    size_t sizemax;
-    size_t nrows;
-};
-typedef struct tMem tMem;
+typedef struct Mem Mem;
 
+// Init and del memory
+Mem* Mem_init(int);
+void Mem_del(Mem*);
 
 // Names of auxiliar files
 char** make_names(int);
@@ -21,9 +19,10 @@ void fopen_block(FILE**, int, int, char**, char*);
 void fclose_block(FILE**, int, int);
 
 // Load max M lines into memory
-void load_memory(FILE*, tMem*);
-void write_memory(tMem*, FILE*);
-void sort_memory(tMem*, int*);
+void load_memory(FILE*, Mem*);
+void write_memory(Mem*, FILE*);
+void sort_memory(Mem*, int*);
 
+int lin_search(FILE**, int*, int, int);
 // Balanced Multiway Merge
 void BMM(int, int, char*, int*);
