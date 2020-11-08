@@ -23,6 +23,7 @@ void load_memory(FILE*, Mem*);
 void write_memory(Mem*, FILE*);
 void sort_memory(Mem*, int*);
 
+void break_blocks(FILE**, FILE*, Mem*, int*, int);
 int lin_search(FILE**, int*, int, int);
 // Balanced Multiway Merge
 void BMM(int, int, char*, int*);

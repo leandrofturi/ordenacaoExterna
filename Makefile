@@ -9,8 +9,8 @@
 
 CC=gcc
 CFLAGS=-I. -Wall -g -lm
-DEPS = reader.h ext_sort.h
-OBJ = cod/reader.o cod/ext_sort.o main.o
+DEPS = PQ.h reader.h ext_sort.h
+OBJ = cod/PQ.o cod/reader.o cod/ext_sort.o main.o
 
 all: trab2 clean
 

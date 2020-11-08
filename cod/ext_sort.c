@@ -1,5 +1,6 @@
 #include "../bib/ext_sort.h"
 #include "../bib/reader.h"
+#include "../bib/PQ.h"
 #include <string.h>
 
 // Estrutura abstraindo cada linha linha do arquivo
@@ -66,7 +67,7 @@ void fclose_block(FILE **disp, int lo, int hi) {
 }
 
 void load_memory(FILE *fileR, Mem *mem) {
-    size_t i = 0;
+    size_t i;
     char *line, *pch = NULL;
     for(mem->nrows = 0; (mem->nrows < mem->sizemax) && !feof(fileR); mem->nrows++) {
         line = read_line(fileR);
@@ -81,7 +82,8 @@ void load_memory(FILE *fileR, Mem *mem) {
             } while(pch);
         printf("%s", line);
         
-        }*/
+        }
+        */
     }
     if(!line) mem->nrows--;
 }
@@ -103,7 +105,7 @@ static int less(char *a, char *b, int *idexes) {
     return(strcmp(a, b) < 0);
 }
 
-static void exch(int i, int j, Mem *mem) {
+static void Mem_exch(int i, int j, Mem *mem) {
     Line *t = mem->lines[i];
     mem->lines[i] = mem->lines[j];
     mem->lines[j] = t;
@@ -122,9 +124,9 @@ int partition(Mem *mem, int *idexes, int lo, int hi) {
                 break;
         if(i >= j)
             break;
-        exch(i, j, mem);
+        Mem_exch(i, j, mem);
     }
-    exch(lo, j, mem);
+    Mem_exch(lo, j, mem);
 
     return(j);
 }
@@ -134,7 +136,7 @@ static void insert_sort(Mem *mem, int *idexes, int lo, int hi) {
     Line *v;
     for(i = hi; i > lo; i--)
         if(less(mem->lines[i]->data, mem->lines[i-1]->data, idexes))
-            exch(i, i-1, mem);
+            Mem_exch(i, i-1, mem);
     for(i = lo+2; i <= hi; i++) {
         j = i;
         v = mem->lines[i];
@@ -148,7 +150,7 @@ static void shuffle(Mem *mem) {
     int i, j;
     for(i = 0; i < mem->nrows; i++) {
         j = rand() % mem->nrows;
-        exch(i, j, mem);
+        Mem_exch(i, j, mem);
     }
 }
 
@@ -173,160 +175,95 @@ void sort_memory(Mem *mem, int *idexes) {
     quick_sort(mem, idexes, 0, mem->nrows-1);
 }
 
-int lin_search(FILE **disp, int *idexes, int block_R, int P) {
-    size_t i; // iteradores
-    int block_W = block_R == P ? 0 : P,
-        min = P-1;
-    int r, w = block_W;
-    char *line[P]; // linha lida do arquivo
-    int tabu_disp[P], left_devices = P, left_to_read = P; // dispositivos tabu
+static int all_block_feof(FILE **disp, int block, int P) {
+    int c = 0;
+    for(size_t i = block; i < (block+P); i++)
+        if(feof(disp[i])) c++;
+    return c == P;
+}
 
-    for(i = 0; i < P; i++) {
-        line[i] = NULL;
-        tabu_disp[i] = 0;
+// Push a valid line in heap
+static int push_line(FILE *disp, int r, PQ *pq) {
+    char *line = read_line(disp);
+    if(line && strcmp(line, "#\n") == 0) {
+        free(line);
+        return 1;
     }
-
-    while(1) {
-        for(r = 0; r < P; r++) {
-            if(feof(disp[r+block_R])) {
-                tabu_disp[r] = 1;
-                left_devices--;
-                left_to_read--;
-            }
-            if(!tabu_disp[r] && !line[r]) { // apenas leio se estiver vazio e se não for tabu
-                line[r] = read_line(disp[r+block_R]);
-                if(line[r] && strcmp(line[r], "#") == 0) { // acabou o bloco?
-                    free(line[r]);
-                    tabu_disp[r] = 1; // disp passa a ser tabu
-                    left_devices--;
-                    continue;
-                }
-            }
-            if(line[r] && less(line[r], line[min], idexes))
-                min = r;
-        }
-        printf("%s", line[min]);
-        fprintf(disp[w], line[min]);
-        free(line[min]);
-        line[min] = NULL; // essa linha deve ser lida
-        min = 0;
-
-        if(!left_devices) { // se tiver lido tudo do bloco, reseta e passa pro próximo
-            w = ((w+1)%P) + block_W;
-            left_devices = P;
-            for(i = 0; i < P; i++) { // Reseta o sistema
-                line[i] = NULL;
-                tabu_disp[i] = 0;
-            }
-        }
-        if(!left_to_read)
-            break;
+    if(line) {
+        PQ_insert(pq, Data_create(line, r));
+        free(line);
+        return 0;
     }
     return 1;
 }
 
-/*
-disp -> todos os dispositivos
-block_R -> o bloco que está sendo usado para leitura
 int lin_search(FILE **disp, int *idexes, int block_R, int P) {
-    int w, r, // w = iteração de escrita, r =  iteração de leitura
-        min = P, // posição do mínimo
-        block_W = !block_R ? 0 : P, // Bloco de escrita e leitura são inversos
-        disp_writed = 0; // Quantidade de dispositivos que foram escritos. == 1, BMM deve terminar
-    char *line[P]; // linha lida do arquivo
-    w = block_W;
-    int tabu_disp[P], left_devices = P, left_to_read = P;
-    for(size_t i = 0; i < P; i++) {
-        line[i] = NULL;
-        tabu_disp[i] = 0;
-    }
+    int block_W = block_R == P ? 0 : P;
+    int r, w = block_W, readed = 0, 
+        tabu[2*P];
+    Data *min;
+    PQ *pq = PQ_create(P);
 
     while(1) {
+        tabu[w] = 0; // Counter of files "tabu"
         for(r = block_R; r < block_R+P; r++) {
-            printf("loop: %d: ", r);
-            if(feof(disp[r])) {
-                tabu_disp[r] = 1;
-                left_devices--;
-                left_to_read--;
-            }
-            if(!tabu_disp[r-block_R] && !line[r-block_R]) { // apenas leio se estiver vazio e se não for tabu
-                printf("(%d %d)\n", r, r-block_R);
-                line[r-block_R] = read_line(disp[r]); // P-block_R = mapeamento para 0:P
-                if(line[r-block_R] && strcmp(line[r-block_R], "#") == 0) { // acabou o bloco?
-                    free(line[r-block_R]);
-                    tabu_disp[r-block_R] = 1; // disp passa a ser tabu
-                    left_devices--; // decrementa a qnt de disp restantes
-                    continue;
-                }
-            }
+            tabu[r] = push_line(disp[r], r, pq); // insert non-null line in heap
+            tabu[w] += tabu[r]; // if file is not tabu, tabu[r] = 0
+        }
+        while(!PQ_is_empty(pq)) {
+            min = PQ_delmin(pq); // remove min value
+            fprintf(disp[w], Data_getdata(min)); // write in a file
+            r = Data_getpos(min); // take the file when minimum occors
+            Data_del(min);
 
-            if(line[r-block_R] && less(line[r-block_R], line[min], idexes)) { // cc, é comparado com o mínimo
-                min = r-block_R;
-                printf("min %d: %s\n", r-block_R, line[r-block_R]);
-            }
-        } // após ler todos os dispositivos,
-        fprintf(disp[w], line[min]);
-
-        free(line[min]);
-        line[min] = NULL; // essa linha deve ser lida
-        min = P;
-
-        if(!left_devices) { // Se tiver lido tudo do bloco, reseta e passa pro próximo
-            w = ((w+1)%P)+block_W;
-            disp_writed++;
-            left_devices = P;
-            for(size_t i = 0; i < P; i++) { // Reseta o sistema
-                line[i] = NULL;
-                tabu_disp[i] = 0;
+            if(!tabu[r]) { // insert new element, as we remove one
+                tabu[r] = push_line(disp[r], r, pq);
+                tabu[w] += tabu[r];
             }
         }
-        if(!left_to_read)
-            break;
+        if(tabu[w] == P) { // all files is "tabu"?
+            if(all_block_feof(disp, block_R, P)) break; // all files ended? break.
+
+            fprintf(disp[w], "#\n");
+            readed++; // numbers of files readed
+            w = ((w+1)%P)+block_W; // next file to write
+        }
     }
-    return disp_writed;
+    PQ_destroy(pq);
+    return readed;
 }
 
-*/
 void BMM(int M, int P, char *filename, int *idexes) {
-    char *line, **file_names = make_names(2*P);
+    int p, readed = 0, block = P;
+    char **file_names = make_names(2*P);
     FILE *disp[2*P], *fileR;
-    fopen_block(disp, 0, 2*P, file_names, "w"); // criação dos arquivos
-    fclose_block(disp, 0, 2*P);
-
-    fileR = myfopen(filename, "r");
-    disp[0] = myfopen(file_names[0], "w");
-    while(!feof(fileR)) {
-        line = read_line(fileR);
-        fprintf(disp[0], line);
-        free(line);
-    }
-    fclose(fileR); fclose(disp[0]);
-
-    int p, exit = 1, block = P;
     Mem *mem = Mem_init(M);
     
-    while(exit) {
-        // Quebras em blocos de tamanho M
-        fileR = myfopen(file_names[P-block], "r");
-        fopen_block(disp, block, P+block, file_names, "w");
-        for(p = block; ; p = ((p+1)%P)+block) {
-            load_memory(fileR, mem);
-            sort_memory(mem, idexes);
-            write_memory(mem, disp[p]);
-            if(feof(fileR)) {
-                fclose(fileR);
-                fclose_block(disp, block, P+block);
-                break;
-            }
+    // É realizada uma primeira passada sobre o arquivo,
+    // quebrando-o em blocos do tamanho M. Cada bloco é
+    // ordenado com um método para memória interna
+    // - Os blocos são salvos nos dispositivos P, P+1, ..., 2P-1
+    fileR = myfopen(filename, "r");
+    fopen_block(disp, block, P+block, file_names, "w");
+    for(p = block; ; p = ((p+1)%P)+block) {
+        load_memory(fileR, mem);
+        sort_memory(mem, idexes);
+        write_memory(mem, disp[p]);
+        if(feof(fileR)) {
+            fclose(fileR);
+            fclose_block(disp, block, P+block);
+            break;
         }
-
-        // Leitura dos valores em ordem em cada bloco
+    }
+    // Os P primeiros blocos ordenados são intercalados
+    // - Os resultados são blocos maiores, distribuídos nos
+    // dispositivos seguintes
+    while(readed != 1) {
         fopen_block(disp, block, P+block, file_names, "r");
         block = block == P ? 0 : P;
         fopen_block(disp, block, P+block, file_names, "w");
-        exit = lin_search(disp, idexes, block == P ? 0 : P, P) != 1;
+        readed = lin_search(disp, idexes, block == P ? 0 : P, P);
         fclose_block(disp, 0, 2*P);
-        exit = 0;
     }
     Mem_del(mem);
     free_names(file_names, 2*P);
