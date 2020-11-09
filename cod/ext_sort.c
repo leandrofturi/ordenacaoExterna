@@ -1,14 +1,11 @@
 #include "../bib/ext_sort.h"
 #include "../bib/reader.h"
 #include "../bib/PQ.h"
+#include "../bib/line.h"
 #include <string.h>
-
-// Estrutura abstraindo cada linha linha do arquivo
-struct line {
-    char *data; // linha do arquivo propriamente completa 100%
-    size_t *cell; // posições onde têm vírgula
-};
-typedef struct line Line;
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // Estrutura abstraindo a memória
 struct Mem {
@@ -24,13 +21,14 @@ Mem* Mem_init(int M) {
     mem->sizemax = M;
     mem->lines = (Line**) malloc(M*sizeof(Line*));
     for(size_t i = 0; i < M; i++)
-        mem->lines[i] = (Line*) malloc(sizeof(Line));
+        mem->lines[i] = NULL;
+    
     return mem;
 }
 
 void Mem_del(Mem *mem) {
     for(size_t i = 0; i < mem->sizemax; i++)
-        free(mem->lines[i]);
+        Line_del(mem->lines[i]);
     free(mem->lines);
     free(mem);
 }
@@ -39,11 +37,11 @@ void Mem_del(Mem *mem) {
 // 0.txt, 1.txt, 2.txt, ..., 2*P.txt
 char** make_names(int P) {
     int N_DIG = snprintf(0, 0, "%+d", P)-1;
-    char buf[N_DIG+1];
+    char buf[N_DIG+5];
     char** names = (char**) malloc(P*sizeof(char*));
     for(int i = 0; i < P; i++) {
-        names[i] = (char*) malloc((N_DIG+5)*sizeof(char));
-        sprintf(buf, "%d", i);
+        names[i] = (char*) malloc((N_DIG+10)*sizeof(char));
+        sprintf(buf, "tmp/%d", i);
         strcpy(names[i], buf);
         strcat(names[i], ".txt");
     }
@@ -67,23 +65,12 @@ void fclose_block(FILE **disp, int lo, int hi) {
 }
 
 void load_memory(FILE *fileR, Mem *mem) {
-    size_t i;
-    char *line, *pch = NULL;
+    char *line;
+    Line *data;
     for(mem->nrows = 0; (mem->nrows < mem->sizemax) && !feof(fileR); mem->nrows++) {
         line = read_line(fileR);
-        mem->lines[mem->nrows]->data = line;
-        /*
-        if(line) {
-            char cpy[strlen(line)+1];
-            memcpy(cpy, line, strlen(cpy)+1);
-            do {
-                pch = (char*) memchr(cpy+i, ',', strlen(cpy+i));
-                printf("',' found at position %d.\n", pch-cpy);
-            } while(pch);
-        printf("%s", line);
-        
-        }
-        */
+        data = Line_create(line);
+        if(data) mem->lines[mem->nrows] = data;
     }
     if(!line) mem->nrows--;
 }
@@ -91,24 +78,12 @@ void load_memory(FILE *fileR, Mem *mem) {
 void write_memory(Mem *mem, FILE *fileW) {
     size_t m;
     for(m = 0; m < mem->nrows; m++) {
-        fprintf(fileW, mem->lines[m]->data);
-        free(mem->lines[m]->data);
+        fprintf(fileW, Line_getdata(mem->lines[m]));
+        free(Line_getdata(mem->lines[m]));
+        Line_del(mem->lines[m]);
+        mem->lines[m] = NULL;
     }
     if(m) fprintf(fileW, "#\n");
-}
-
-static int less(char *a, char *b, int *idexes) {
-    if(!b) // maior de todos é NULL
-        return 1;
-    if(!a)
-        return 0;
-    return(strcmp(a, b) < 0);
-}
-
-static void Mem_exch(int i, int j, Mem *mem) {
-    Line *t = mem->lines[i];
-    mem->lines[i] = mem->lines[j];
-    mem->lines[j] = t;
 }
 
 int partition(Mem *mem, int *idexes, int lo, int hi) {
@@ -116,17 +91,17 @@ int partition(Mem *mem, int *idexes, int lo, int hi) {
     Line *v = mem->lines[lo];
 
     while(1) {
-        while(less(mem->lines[++i]->data, v->data, idexes))
+        while(Line_less(mem->lines[++i], v, idexes))
             if(i == hi)
                 break;
-        while(less(v->data, mem->lines[--j]->data, idexes))
+        while(Line_less(v, mem->lines[--j], idexes))
             if(j == lo)
                 break;
         if(i >= j)
             break;
-        Mem_exch(i, j, mem);
+        Line_exch(mem->lines[i], mem->lines[j]);
     }
-    Mem_exch(lo, j, mem);
+    Line_exch(mem->lines[lo], mem->lines[j]);
 
     return(j);
 }
@@ -135,12 +110,12 @@ static void insert_sort(Mem *mem, int *idexes, int lo, int hi) {
     int i, j;
     Line *v;
     for(i = hi; i > lo; i--)
-        if(less(mem->lines[i]->data, mem->lines[i-1]->data, idexes))
-            Mem_exch(i, i-1, mem);
+        if(Line_less(mem->lines[i], mem->lines[i-1], idexes))
+            Line_exch(mem->lines[i], mem->lines[i-1]);
     for(i = lo+2; i <= hi; i++) {
         j = i;
         v = mem->lines[i];
-        for(; less(v->data, mem->lines[j-1]->data, idexes); j--)
+        for(; Line_less(v, mem->lines[j-1], idexes); j--)
             mem->lines[j] = mem->lines[j-1];
         mem->lines[j] = v;
     }
@@ -150,7 +125,7 @@ static void shuffle(Mem *mem) {
     int i, j;
     for(i = 0; i < mem->nrows; i++) {
         j = rand() % mem->nrows;
-        Mem_exch(i, j, mem);
+        Line_exch(mem->lines[i], mem->lines[j]);
     }
 }
 
@@ -183,15 +158,17 @@ static int all_block_feof(FILE **disp, int block, int P) {
 }
 
 // Push a valid line in heap
-static int push_line(FILE *disp, int r, PQ *pq) {
+static int push_line(FILE *disp, int r, PQ *pq, int *idexes) {
+    Line *data;
     char *line = read_line(disp);
     if(line && strcmp(line, "#\n") == 0) {
         free(line);
         return 1;
     }
     if(line) {
-        PQ_insert(pq, Data_create(line, r));
-        free(line);
+        data = Line_create(line);
+        Line_setpos(data, r);
+        PQ_insert(pq, data, idexes);
         return 0;
     }
     return 1;
@@ -201,23 +178,24 @@ int lin_search(FILE **disp, int *idexes, int block_R, int P) {
     int block_W = block_R == P ? 0 : P;
     int r, w = block_W, readed = 0, 
         tabu[2*P];
-    Data *min;
+    Line *min;
     PQ *pq = PQ_create(P);
 
     while(1) {
         tabu[w] = 0; // Counter of files "tabu"
         for(r = block_R; r < block_R+P; r++) {
-            tabu[r] = push_line(disp[r], r, pq); // insert non-null line in heap
+            tabu[r] = push_line(disp[r], r, pq, idexes); // insert non-null line in heap
             tabu[w] += tabu[r]; // if file is not tabu, tabu[r] = 0
         }
         while(!PQ_is_empty(pq)) {
-            min = PQ_delmin(pq); // remove min value
-            fprintf(disp[w], Data_getdata(min)); // write in a file
-            r = Data_getpos(min); // take the file when minimum occors
-            Data_del(min);
+            min = PQ_delmin(pq, idexes); // remove min value
+            fprintf(disp[w], Line_getdata(min)); // write in a file
+            r = Line_getpos(min); // take the file when minimum occors
+            free(Line_getdata(min));
+            Line_del(min);
 
             if(!tabu[r]) { // insert new element, as we remove one
-                tabu[r] = push_line(disp[r], r, pq);
+                tabu[r] = push_line(disp[r], r, pq, idexes);
                 tabu[w] += tabu[r];
             }
         }
@@ -234,6 +212,11 @@ int lin_search(FILE **disp, int *idexes, int block_R, int P) {
 }
 
 void BMM(int M, int P, char *filename, int *idexes) {
+    struct stat st = {0};
+    if(stat("tmp", &st) == -1)
+        mkdir("tmp", 0777);
+    else system("exec rm -r tmp/*");
+
     int p, readed = 0, block = P;
     char **file_names = make_names(2*P);
     FILE *disp[2*P], *fileR;
