@@ -211,9 +211,10 @@ int lin_search(FILE **disp, int *idexes, int block_R, int P) {
     return readed;
 }
 
-void BMM(int M, int P, char *filename, int *idexes) {
+// Note that the idexes with the column order need to ends with -1
+void BMM(int M, int P, char *filename, int *idexes, char *filename_sorted) {
     struct stat st = {0};
-    if(stat("tmp", &st) == -1)
+    if(stat("tmp", &st) != 0)
         mkdir("tmp", 0777);
     else system("exec rm -r tmp/*");
 
@@ -248,6 +249,13 @@ void BMM(int M, int P, char *filename, int *idexes) {
         readed = lin_search(disp, idexes, block == P ? 0 : P, P);
         fclose_block(disp, 0, 2*P);
     }
+
+    // Create a copy of sorted file in an knew place
+    copy(file_names[block], filename_sorted);
+
     Mem_del(mem);
     free_names(file_names, 2*P);
+
+    if(stat("tmp", &st) == 0)
+        system("exec rm -r tmp");
 }

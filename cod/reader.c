@@ -1,3 +1,4 @@
+#include <string.h>
 #include <limits.h>
 #include "../bib/reader.h"
 
@@ -45,4 +46,33 @@ int strcount(char *str, char c) {
 
 int strcountR(char *str, char c) {
     return *str ? ((c==*str) + strcountR(str+1, c)) : 0;
+}
+
+// https://stackoverflow.com/questions/10535379/how-to-create-an-exact-copy-of-file-in-c/10535452
+double copy(char *input, char *output) {
+    FILE *f_in = fopen(input, "r");
+    FILE *f_out = fopen(output, "w");
+    if (!f_in || !f_out) {
+        fclose(f_in); fclose(f_out);
+        return -1;
+    }
+    int c;
+    while ((c = fgetc(f_in)) != EOF)
+        fputc(c, f_out);
+    fclose(f_in);
+    fseek(f_out, 0, SEEK_END);
+    long size = ftell(f_out);
+    fclose(f_out);
+    return (double)(size / 1024 / 1024); // MB
+}
+
+// Replace a character in string
+// https://stackoverflow.com/questions/32496497/standard-function-to-replace-character-or-substring-in-a-char-array/32496721
+char* strrep(char* str, char find, char replace) {
+    char *current_pos = strchr(str,find);
+    while(current_pos) {
+        *current_pos = replace;
+        current_pos = strchr(current_pos,find);
+    }
+    return str;
 }

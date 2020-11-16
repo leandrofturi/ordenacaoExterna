@@ -23,7 +23,11 @@ void load_memory(FILE*, Mem*);
 void write_memory(Mem*, FILE*);
 void sort_memory(Mem*, int*);
 
+// Part of break in blocks
 void break_blocks(FILE**, FILE*, Mem*, int*, int);
+// Linear search during the files
 int lin_search(FILE**, int*, int, int);
+
 // Balanced Multiway Merge
-void BMM(int, int, char*, int*);
+// Note that the idexes with the column order need to ends with -1
+void BMM(int, int, char*, int*, char*);

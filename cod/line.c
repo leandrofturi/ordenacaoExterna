@@ -3,6 +3,8 @@
 #include <string.h>
 #include "../bib/line.h"
 
+#define MIN(A, B) A < B ? A : B
+
 // Estrutura abstraindo cada linha linha do arquivo
 struct line {
     char *data; // linha do arquivo propriamente completa 100%
@@ -12,14 +14,16 @@ struct line {
 
 
 static int* pos_commas(char *line) {
-    size_t i = 0, j = 0;
+    size_t i = 0, j = 1;
     int step = 30;
-    int n = step;
+    int n = step+2; // first position & last position
     int *more, *commas = (int*) malloc(n*sizeof(int));
 
+    commas[0] = 0;
     char *pch = strchr(line, ',');
     while(1) {
-        if(!pch) break;
+        if(!pch)
+            break;
         if(i == step) {
             more = (int*) realloc(commas, (n += step)*sizeof(int));
             if(!more) exit(1); // erros de realloc
@@ -30,6 +34,7 @@ static int* pos_commas(char *line) {
             pch = strchr(pch+1,',');
         }
     }
+    commas[j] = strlen(line)-1;
     return commas;
 }
 
@@ -71,8 +76,17 @@ int Line_less(Line *a, Line *b, int *idexes) {
 
     if(!b->data) return 1;
     if(!a->data) return 0;
-
-    return(strcmp(a->data, b->data) < 0);
+    
+    int n, r = 0;
+    for(size_t i = 0; idexes[i] >= 0; i++) {
+        n = MIN(a->commas[idexes[i]+1] - a->commas[idexes[i]] - 1,
+                b->commas[idexes[i]+1] - b->commas[idexes[i]] - 1);
+        if(!idexes[i]) n++;
+        r = strncmp(a->data + a->commas[idexes[i]], 
+                    b->data + b->commas[idexes[i]], n);
+        if(r != 0) break;
+    }
+    return(r < 0);
 }
 
 int Line_greater(Line *a, Line *b, int *idexes) {
@@ -82,5 +96,14 @@ int Line_greater(Line *a, Line *b, int *idexes) {
     if(!b->data) return 0;
     if(!a->data) return 1;
 
-    return(strcmp(a->data, b->data) < 0);
+    int n, r = 0;
+    for(size_t i = 0; idexes[i] >= 0; i++) {
+        n = MIN(a->commas[idexes[i]+1] - a->commas[idexes[i]] - 1,
+                b->commas[idexes[i]+1] - b->commas[idexes[i]] - 1);
+        if(!idexes[i]) n++;
+        r = strncmp(a->data + a->commas[idexes[i]], 
+                    b->data + b->commas[idexes[i]], n);
+        if(r != 0) break;
+    }
+    return(r > 0);
 }
