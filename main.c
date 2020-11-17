@@ -3,7 +3,6 @@
 #include <string.h>
 #include "bib/reader.h"
 #include "bib/ext_sort.h"
-#include "bib/line.h"
 
 
 int main(int argc, char *argv[]) {

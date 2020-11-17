@@ -30,11 +30,11 @@ static int* pos_commas(char *line) {
             else commas = more;
         }
         for(i = 0; i < step && pch; i++, j++) {
-            commas[j] = pch-line;
+            commas[j] = pch-line+1;
             pch = strchr(pch+1,',');
         }
     }
-    commas[j] = strlen(line)-1;
+    commas[j] = strlen(line)+1;
     return commas;
 }
 
@@ -71,39 +71,30 @@ int Line_getpos(Line *line) {
 }
 
 int Line_less(Line *a, Line *b, int *idexes) {
-    if(!b) return 1; // maior de todos é NULL
-    if(!a) return 0;
-
-    if(!b->data) return 1;
-    if(!a->data) return 0;
-    
-    int n, r = 0;
-    for(size_t i = 0; idexes[i] >= 0; i++) {
-        n = MIN(a->commas[idexes[i]+1] - a->commas[idexes[i]] - 1,
-                b->commas[idexes[i]+1] - b->commas[idexes[i]] - 1);
-        if(!idexes[i]) n++;
-        r = strncmp(a->data + a->commas[idexes[i]], 
-                    b->data + b->commas[idexes[i]], n);
-        if(r != 0) break;
-    }
-    return(r < 0);
+    return(Line_cmp(a, b, idexes, idexes) < 0);
 }
 
 int Line_greater(Line *a, Line *b, int *idexes) {
-    if(!b) return 0; // maior de todos é NULL
-    if(!a) return 1;
+    return(Line_cmp(a, b, idexes, idexes) > 0);
+}
 
-    if(!b->data) return 0;
-    if(!a->data) return 1;
+int Line_cmp(Line *a, Line *b, int *idexes1, int *idexes2) {
+    if(!b && !a) return 0;
+    if(!b) return 1; // maior de todos é NULL
+    if(!a) return -1;
+
+    if(!b->data && !a->data) return 0;
+    if(!b->data) return 1;
+    if(!a->data) return -1;
 
     int n, r = 0;
-    for(size_t i = 0; idexes[i] >= 0; i++) {
-        n = MIN(a->commas[idexes[i]+1] - a->commas[idexes[i]] - 1,
-                b->commas[idexes[i]+1] - b->commas[idexes[i]] - 1);
-        if(!idexes[i]) n++;
-        r = strncmp(a->data + a->commas[idexes[i]], 
-                    b->data + b->commas[idexes[i]], n);
+    for(size_t i = 0; idexes1[i] >= 0 && idexes2[i] >= 0; i++) {
+        n = MIN(a->commas[idexes1[i]+1] - a->commas[idexes1[i]] - 1, 
+                b->commas[idexes2[i]+1] - b->commas[idexes2[i]] - 1);
+        // printf("%d\n%s\n%s\n\n", n, a->data + a->commas[idexes1[i]], b->data + b->commas[idexes2[i]]);
+        r = strncmp(a->data + a->commas[idexes1[i]], 
+                    b->data + b->commas[idexes2[i]], n);
         if(r != 0) break;
     }
-    return(r > 0);
+    return r;
 }

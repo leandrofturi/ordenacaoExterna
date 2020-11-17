@@ -21,6 +21,8 @@ int Line_less(Line*, Line*, int*);
 
 int Line_greater(Line*, Line*, int*);
 
+int Line_cmp(Line*, Line*, int*, int*);
+
 #define Line_exch(a, b) { Line *t = a; a = b; b = t; }
 
 
