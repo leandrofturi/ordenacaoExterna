@@ -79,12 +79,11 @@ int Line_less(Line *a, Line *b, int *idexes) {
     
     int n, r = 0;
     for(size_t i = 0; idexes[i] >= 0; i++) {
-        int qtd_car1 = a->commas[idexes[i]] == 0 ? a->commas[idexes[i]+1] - a->commas[idexes[i]] : a->commas[idexes[i]+1] - (a->commas[idexes[i]] + 1);
-        int qtd_car2 = b->commas[idexes[i]] == 0 ? b->commas[idexes[i]+1] - b->commas[idexes[i]] : b->commas[idexes[i]+1] - (b->commas[idexes[i]] + 1);
+        int qtd_car1 = idexes[i] == 0 ? a->commas[idexes[i]+1] - a->commas[idexes[i]] : a->commas[idexes[i]+1] - (a->commas[idexes[i]] + 1);
+        int qtd_car2 = idexes[i] == 0 ? b->commas[idexes[i]+1] - b->commas[idexes[i]] : b->commas[idexes[i]+1] - (b->commas[idexes[i]] + 1);
         n = MIN( qtd_car1, qtd_car2);
-        if(!idexes[i]) n++;
-        char *string1 = a->commas[idexes[i]] == 0 ? a->data + a->commas[idexes[i]] : a->data + a->commas[idexes[i]] + 1 ;
-        char *string2 = b->commas[idexes[i]] == 0 ? b->data + b->commas[idexes[i]] : b->data + b->commas[idexes[i]] + 1 ;
+        char *string1 = idexes[i] == 0 ? a->data + a->commas[idexes[i]] : a->data + a->commas[idexes[i]] + 1 ;
+        char *string2 = idexes[i] == 0 ? b->data + b->commas[idexes[i]] : b->data + b->commas[idexes[i]] + 1 ;
         r = strncmp(string1, string2, n);
         if(r != 0) break;
     }
@@ -103,9 +102,8 @@ int Line_less_merge(Line *a, Line *b, int *idexes1, int *idexes2) {
         int qtd_car1 = idexes1[i] == 0 ? a->commas[idexes1[i]+1] - a->commas[idexes1[i]] : a->commas[idexes1[i]+1] - (a->commas[idexes1[i]] + 1);
         int qtd_car2 = idexes2[i] == 0 ? b->commas[idexes2[i]+1] - b->commas[idexes2[i]] : b->commas[idexes2[i]+1] - (b->commas[idexes2[i]] + 1);
         n = MIN( qtd_car1, qtd_car2);
-        if(!idexes1[i]) n++;
-        char *string1 = a->commas[idexes1[i]] == 0 ? a->data + a->commas[idexes1[i]] : a->data + a->commas[idexes1[i]] + 1 ;
-        char *string2 = b->commas[idexes2[i]] == 0 ? b->data + b->commas[idexes2[i]] : b->data + b->commas[idexes2[i]] + 1 ;
+        char *string1 = idexes1[i] == 0 ? a->data + a->commas[idexes1[i]] : a->data + a->commas[idexes1[i]] + 1 ;
+        char *string2 = idexes2[i] == 0 ? b->data + b->commas[idexes2[i]] : b->data + b->commas[idexes2[i]] + 1 ;
         r = strncmp(string1, string2, n);
         if(r != 0) break;
     }

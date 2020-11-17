@@ -19,11 +19,10 @@ void merge(char *fileName1, char *fileName2, char *finalFileName, int *idexes1, 
 
     lineFile1 = Line_create(readLine1);
     lineFile2 = Line_create(readLine2);
-    int compare, compare2;
+    int compare;
 
-    while ( !feof(file1) || !feof(file2)) {
+    while ( !feof(file1) && !feof(file2) ) {
         // Caso as linhas sejam iguais, imprime no arquivo final
-
         compare = Line_less_merge(lineFile1, lineFile2, idexes1, idexes2);
         if( compare == 0 ) {
             Line_print_final_file(lineFile1, idexes1, lineFile2, idexes2, finalFile);
@@ -36,13 +35,13 @@ void merge(char *fileName1, char *fileName2, char *finalFileName, int *idexes1, 
             if(strcmp(readLine1, "#") != 0) lineFile1 = Line_create(readLine1);
             if(strcmp(readLine2, "#") != 0)  lineFile2 = Line_create(readLine2);
         }
-        else if(compare > 0) {
+        else if(compare < 0) {
             Line_del(lineFile1);
             readLine1 = read_line(file1);
             if(!readLine1) break;
             if(strcmp(readLine1, "#") == 0) break;
             lineFile1 = Line_create(readLine1);
-        } else {
+        } else if(compare > 0) {
             Line_del(lineFile2);
             readLine2 = read_line(file2);
             if(!readLine2) break;
