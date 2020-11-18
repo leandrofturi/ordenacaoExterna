@@ -99,3 +99,52 @@ int Line_cmp(Line *a, Line *b, int *idexes1, int *idexes2) {
     // printf("=%d\n\n", r);
     return r;
 }
+
+char* Line_formated(Line *a, Line *b, int *idexes1, int *idexes2) {
+    int i = 0, n, n1, n2;
+    n = strlen(a->data) + strlen(b->data) + 1;
+    char *lineF = (char*) malloc(n*sizeof(char));
+
+    // Em comum
+    n = a->commas[idexes1[0]+1] - a->commas[idexes1[0]] - 1;
+    strncpy(lineF, a->data + a->commas[idexes1[0]], n);
+    lineF[n] = '\0';
+    for(i = 1; idexes1[i] >= 0; i++) {
+        n = a->commas[idexes1[i]+1] - a->commas[idexes1[i]] - 1;
+        strcat(lineF, ",");
+        strncat(lineF, a->data + a->commas[idexes1[i]], n);
+    }
+
+    // Apenas de a
+    n1 = strcount(a->data, ',') + 1;
+    int idx1[n1];
+    for(i = 0; i < n1; i++)
+        idx1[i] = i;
+
+    n2 = strcount(b->data, ',') + 1;
+    int idx2[n2];
+    for(i = 0; i < n2; i++)
+        idx2[i] = i;
+
+    for(i = 0; idexes1[i] >= 0; i++)
+        idx1[idexes1[i]] = idx2[idexes2[i]] = -1;
+
+    for(i = 0; i < n1; i++) {
+        if(idx1[i] >= 0) {
+            n = a->commas[idx1[i]+1] - a->commas[idx1[i]] - 1;
+            strcat(lineF, ",");
+            strncat(lineF, a->data + a->commas[idx1[i]], n);
+        }
+    }
+
+    // Apenas de b
+    for(i = 0; i < n2; i++) {
+        if(idx2[i] >= 0) {
+            n = b->commas[idx2[i]+1] - b->commas[idx2[i]] - 1;
+            strcat(lineF, ",");
+            strncat(lineF, b->data + b->commas[idx2[i]], n);
+        }
+    }
+    strcat(lineF, "\n");
+    return lineF;
+}
