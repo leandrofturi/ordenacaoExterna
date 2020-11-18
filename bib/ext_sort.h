@@ -31,3 +31,5 @@ int lin_search(FILE**, int*, int, int);
 // Balanced Multiway Merge
 // Note that the idexes with the column order need to ends with -1
 void BMM(int, int, char*, int*, char*);
+
+void merge(char*, char*, int*, int*, char*);

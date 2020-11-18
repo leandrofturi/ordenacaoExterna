@@ -256,6 +256,105 @@ void BMM(int M, int P, char *filename, int *idexes, char *filename_sorted) {
     Mem_del(mem);
     free_names(file_names, 2*P);
 
-    if(stat("tmp", &st) == 0)
-        system("exec rm -r tmp");
+    //if(stat("tmp", &st) == 0)
+    //    system("exec rm -r tmp");
+}
+
+static char* formated_line(Line *a, Line *b, int *idexes1, int *idexes2) {
+    int i = 0, n, n1, n2;
+    char *lineF = (char*) malloc((strlen(Line_getdata(a)) + strlen(Line_getdata(b)) + 1)*sizeof(char));
+
+    // Em comum
+    n = Line_getcommas(a)[idexes1[i]+1] - Line_getcommas(a)[idexes1[0]] - 1;
+    strncpy(lineF, Line_getdata(a) + Line_getcommas(a)[idexes1[0]], n);
+    for(i = 1; idexes1[i] >= 0; i++) {
+        n = Line_getcommas(a)[idexes1[i]+1] - Line_getcommas(a)[idexes1[i]] - 1;
+        strcat(lineF, ",");
+        strncat(lineF, Line_getdata(a) + Line_getcommas(a)[idexes1[i]], n);
+    }
+
+    // Apenas de a
+    n1 = strcount(Line_getdata(a), ',') + 1;
+    int idx1[n1+1];
+    for(i = 0; i < n1; i++)
+        idx1[i] = i;
+
+    n2 = strcount(Line_getdata(b), ',') + 1;
+    int idx2[n2];
+    for(i = 0; i < n2; i++)
+        idx2[i] = i;
+
+    for(i = 0; idexes1[i] >= 0; i++)
+        idx1[idexes1[i]] = idx2[idexes2[i]] = -1;
+
+/*
+    for(i = 0; i < n1; i++) {
+        if(idx1[i] >= 0) {
+            n = Line_getcommas(a)[idx1[i]+1] - Line_getcommas(a)[idx1[i]] - 1;
+            strcat(lineF, ",");
+            strncat(lineF, Line_getdata(a) + Line_getcommas(a)[idx1[i]], n);
+        }
+    }
+
+    // Apenas de b
+    for(i = 0; i < n2; i++) {
+        if(idx2[i] >= 0) {
+            n = Line_getcommas(b)[idx2[i]+1] - Line_getcommas(b)[idx2[i]] - 1;
+            strcat(lineF, ",");
+            strncat(lineF, Line_getdata(b) + Line_getcommas(b)[idx2[i]], n);
+        }
+    }*/
+    strcat(lineF, "\n");
+    //printf("%s", lineF);
+    return lineF;
+}
+
+void merge(char *filename1, char *filename2, int *idexes1, int *idexes2, char *filenameout) {
+    int cmp;
+    char *line1, *line2, *lineF;
+    Line *L1, *L2;
+    FILE *f1 = myfopen(filename1, "r");
+    FILE *f2 = myfopen(filename2, "r");
+    FILE *fout = myfopen(filenameout, "w");
+
+    line1 = read_line(f1);
+    line2 = read_line(f2);
+    L1 = Line_create(line1);
+    L2 = Line_create(line2);
+    while (!feof(f1) || !feof(f2)) {
+        cmp = Line_cmp(L1, L2, idexes1, idexes2);
+        if(cmp == 0) {
+            lineF = formated_line(L1, L2, idexes1, idexes2);
+            fprintf(fout, lineF);
+            free(lineF);
+
+            Line_del(L1); free(line1);
+            Line_del(L2); free(line2);
+            
+            line1 = read_line(f1); L1 = Line_create(line1);
+            line2 = read_line(f2); L2 = Line_create(line2);
+        }
+        else if(cmp > 0) { // line1 maior
+            Line_del(L2); free(line2);
+            line2 = read_line(f2); L2 = Line_create(line2);
+        }
+        else { // line2 maior
+            Line_del(L1); free(line1);
+            line1 = read_line(f1); L1 = Line_create(line1);
+        }
+
+        if(line1 && strcmp(line1, "#\n") == 0) {
+            Line_del(L1); free(line1);
+            L1 = NULL;
+            read_line(f1);
+        }
+        if(line2 && strcmp(line2, "#\n") == 0) {
+            Line_del(L2); free(line2);
+            L2 = NULL;
+            read_line(f2);
+        }
+    }
+    fclose(f1);
+    fclose(f2);
+    fclose(fout);
 }

@@ -3,7 +3,7 @@
 #include <string.h>
 #include "../bib/line.h"
 
-#define MIN(A, B) A < B ? A : B
+#define MAX(A, B) A > B ? A : B
 
 // Estrutura abstraindo cada linha linha do arquivo
 struct line {
@@ -34,7 +34,7 @@ static int* pos_commas(char *line) {
             pch = strchr(pch+1,',');
         }
     }
-    commas[j] = strlen(line)+1;
+    commas[j] = strlen(line);
     return commas;
 }
 
@@ -89,12 +89,13 @@ int Line_cmp(Line *a, Line *b, int *idexes1, int *idexes2) {
 
     int n, r = 0;
     for(size_t i = 0; idexes1[i] >= 0 && idexes2[i] >= 0; i++) {
-        n = MIN(a->commas[idexes1[i]+1] - a->commas[idexes1[i]] - 1, 
+        n = MAX(a->commas[idexes1[i]+1] - a->commas[idexes1[i]] - 1, 
                 b->commas[idexes2[i]+1] - b->commas[idexes2[i]] - 1);
-        // printf("%d\n%s\n%s\n\n", n, a->data + a->commas[idexes1[i]], b->data + b->commas[idexes2[i]]);
+        // printf("\n(%lu) %d\n%s%s", i, n, a->data + a->commas[idexes1[i]], b->data + b->commas[idexes2[i]]);
         r = strncmp(a->data + a->commas[idexes1[i]], 
                     b->data + b->commas[idexes2[i]], n);
         if(r != 0) break;
     }
+    // printf("=%d\n\n", r);
     return r;
 }
