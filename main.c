@@ -30,8 +30,9 @@ void merge(char *fileName1, char *fileName2, char *finalFileName, int *idexes1, 
             Line_del(lineFile2);
             // Ler a próxima linha nos dois arquivos
             readLine1 = read_line(file1);
-
             readLine2 = read_line(file2);
+            if(!readLine1) break;
+            if(!readLine2) break;
             if(strcmp(readLine1, "#") != 0) lineFile1 = Line_create(readLine1);
             if(strcmp(readLine2, "#") != 0)  lineFile2 = Line_create(readLine2);
         }
@@ -39,14 +40,13 @@ void merge(char *fileName1, char *fileName2, char *finalFileName, int *idexes1, 
             Line_del(lineFile1);
             readLine1 = read_line(file1);
             if(!readLine1) break;
-            if(strcmp(readLine1, "#") == 0) break;
-            lineFile1 = Line_create(readLine1);
+            if(strcmp(readLine1, "#") != 0) lineFile1 = Line_create(readLine1);
+
         } else if(compare > 0) {
             Line_del(lineFile2);
             readLine2 = read_line(file2);
             if(!readLine2) break;
-            if(strcmp(readLine2, "#") == 0) break;
-            lineFile2 = Line_create(readLine2);
+            if(strcmp(readLine2, "#") != 0) lineFile2 = Line_create(readLine2);
         }
     }
     fclose(file1);
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
     char *in1 = argv[5];
     char *in2 = argv[6];
     char *out = argv[7];
-
+//
     BMM(M, P, in1, L1, "sorted1.txt");
     BMM(M, P, in2, L2, "sorted2.txt");
 
