@@ -10,7 +10,18 @@ struct line {
     char *data; // linha do arquivo propriamente completa 100%
     int *commas; // posições onde têm vírgula
     int pos; // auxiliar para ordenação
+    int size;
 };
+
+int vectorSize(char *line) {
+    int size = 1;
+    for(int i=0; i<strlen(line); i++) {
+        if(line[i]== ',') {
+            size++;
+        }
+    }
+    return size;
+}
 
 
 static int* pos_commas(char *line) {
@@ -44,6 +55,7 @@ Line* Line_create(char *data) {
     Line *line = (Line*) malloc(sizeof(Line));
     line->data = data;
     line->commas = pos_commas(data);
+    line->size = vectorSize(data);
     return line;
 }
 
@@ -142,31 +154,31 @@ void Line_print_final_file(Line *a, int *idexes1, Line *b, int *idexes2, FILE* a
     char *stringToPrint;
 
     for(size_t i = 0; idexes1[i] >= 0; i++) {
-        char_quantity = idexes1[i] == 0 ? a->commas[idexes1[i]+1] - a->commas[idexes1[i]] : a->commas[idexes1[i]+1] - (a->commas[idexes1[i]] + 1);
-        stringToPrint = idexes1[i] == 0 ? a->data : a->data + a->commas[i];
+        char_quantity = idexes1[i] == 0 ? a->commas[idexes1[i]+1] - a->commas[idexes1[i]] : a->commas[idexes1[i]+1] - (a->commas[idexes1[i]]);
+        stringToPrint = idexes1[i] == 0 ? a->data : a->data + a->commas[idexes1[i]] + 1;
         fprintf(arq, "%.*s,", char_quantity, stringToPrint );
     }
     int k = 0;
 
     // Printar o final do arquivo 1
     int is_joint_column = 0;
-    for(size_t i = 0; i < 4; i++) {
-        for(size_t j = i + 1; idexes1[j] >= 0; j++ ) {
+    for(size_t i = 0; i < a->size; i++) {
+        for(size_t j = 0; j < a->size; j++ ) {
             if(i == idexes1[j]) is_joint_column = 1;
         }
         if(is_joint_column == 0) {
             char_quantity = a->commas[i+1] - (a->commas[i] + 1);
             stringToPrint = a->data + a->commas[i] + 1;
             fprintf(arq, "%.*s,", char_quantity, stringToPrint );
-            printf( "%.*s,", char_quantity, stringToPrint );
+//            printf( "%.*s,", char_quantity, stringToPrint );
         }
         is_joint_column = 0;
     }
 
     // Printar o final do arquivo 2
     is_joint_column = 0;
-    for(size_t i = 0; i < 3; i++) {
-        for(size_t j = i + 1; idexes2[j] >= 0; j++ ) {
+    for(size_t i = 0; i < b->size; i++) {
+        for(size_t j = 0; j < b->size ; j++ ) {
             if(i == idexes2[j]) is_joint_column = 1;
         }
         if(is_joint_column == 0) {
