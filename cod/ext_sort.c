@@ -279,10 +279,10 @@ void merge(char *filename1, char *filename2, int *idexes1, int *idexes2, char *f
             fprintf(fout, lineF);
             free(lineF);
 
-            if(L1) Line_del(L1);
-            if(line1) free(line1);
-            if(L2) Line_del(L2);
-            if(line2) free(line2);
+            if(L1) { Line_del(L1); L1 = NULL; }
+            if(line1) { free(line1); line1 = NULL; }
+            if(L2) { Line_del(L2); L2 = NULL; }
+            if(line2) { free(line2); line2 = NULL; }
             
             line1 = read_line(f1); L1 = Line_create(line1);
             line2 = read_line(f2); L2 = Line_create(line2);
@@ -293,22 +293,24 @@ void merge(char *filename1, char *filename2, int *idexes1, int *idexes2, char *f
             line2 = read_line(f2); L2 = Line_create(line2);
         }
         else { // line2 maior
-            if(L1) Line_del(L1);
-            if(line1) free(line1);
+            if(L1) { Line_del(L1); L1 = NULL; }
+            if(line1) { free(line1); line1 = NULL; }
             line1 = read_line(f1); L1 = Line_create(line1);
         }
 
         if(line1 && strcmp(line1, "#\n") == 0) {
-            Line_del(L1); free(line1);
+            Line_del(L1); free(line1); line1=NULL; L1=NULL;
             read_line(f1);
         }
         if(line2 && strcmp(line2, "#\n") == 0) {
-            Line_del(L2); free(line2);
+            Line_del(L2); free(line2); line2=NULL; L2=NULL;
             read_line(f2);
         }
     }
     if(line1) free(line1);
+    if(line2) free(line2);
     if(L1) Line_del(L1);
+    if(L2) Line_del(L2);
     fclose(f1);
     fclose(f2);
     fclose(fout);
