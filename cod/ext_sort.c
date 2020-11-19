@@ -307,6 +307,8 @@ void merge(char *filename1, char *filename2, int *idexes1, int *idexes2, char *f
             read_line(f2);
         }
     }
+    if(line1) free(line1);
+    if(L1) Line_del(L1);
     fclose(f1);
     fclose(f2);
     fclose(fout);
