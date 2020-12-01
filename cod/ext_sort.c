@@ -144,7 +144,6 @@ void quick_sort(Mem *mem, int *idexes, int lo, int hi) {
 void sort_memory(Mem *mem, int *idexes) {
     if(mem->nrows <= 1)
         return;
-    insert_sort(mem, idexes, 0, mem->nrows-1);
     if(mem->nrows > CUTOFF)
         shuffle(mem);
     quick_sort(mem, idexes, 0, mem->nrows-1);
